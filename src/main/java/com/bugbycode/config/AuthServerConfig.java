@@ -1,6 +1,5 @@
 package com.bugbycode.config;
 
-import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -11,14 +10,22 @@ import org.springframework.security.oauth2.config.annotation.configurers.ClientD
 import org.springframework.security.oauth2.config.annotation.web.configuration.AuthorizationServerConfigurerAdapter;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerEndpointsConfigurer;
 import org.springframework.security.oauth2.config.annotation.web.configurers.AuthorizationServerSecurityConfigurer;
-import org.springframework.security.oauth2.provider.token.store.JdbcTokenStore;
+import org.springframework.security.oauth2.provider.ClientDetailsService;
+import org.springframework.security.oauth2.provider.token.TokenStore;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 
 @Configuration
 public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
-	
+	/*
 	@Autowired
 	private DataSource dataSource;
+	*/
+	
+	@Autowired
+	private ClientDetailsService mongoClientDetailsService;
+	
+	@Autowired
+	private TokenStore mongoTokenStore;
 	
 	@Override
 	public void configure(AuthorizationServerSecurityConfigurer security) throws Exception {
@@ -27,13 +34,15 @@ public class AuthServerConfig extends AuthorizationServerConfigurerAdapter {
 
 	@Override
 	public void configure(ClientDetailsServiceConfigurer clients) throws Exception {
-		clients.jdbc(dataSource);
+		//clients.jdbc(dataSource);
+		clients.withClientDetails(mongoClientDetailsService);
 	}
 
 	@Override
 	public void configure(AuthorizationServerEndpointsConfigurer endpoints) throws Exception {
-		endpoints
-			.tokenStore(new JdbcTokenStore(dataSource));
+		//endpoints.tokenStore(new JdbcTokenStore(dataSource))
+		endpoints.tokenStore(mongoTokenStore)
+		;
 	}
 	
 	@Bean

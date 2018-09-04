@@ -7,3 +7,5 @@ spring:
     username: killbuff
     password: KillBuff.com1991
     driverClassName: com.mysql.jdbc.Driver
+  mongodb:
+    uri: mongodb://root:mongodb%40j1d1sec.c0m@test.server:27017/admin
