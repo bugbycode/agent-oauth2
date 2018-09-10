@@ -2,10 +2,5 @@ loggin:
   config: classpath:log4j2.xml
   
 spring:
-  datasource:
-    url: jdbc:mysql://192.168.0.102:3306/oauth?useUnicode=true&characterEncoding=UTF-8
-    username: killbuff
-    password: KillBuff.com1991
-    driverClassName: com.mysql.jdbc.Driver
   mongodb:
-    uri: mongodb://root:mongodb%40j1d1sec.c0m@test.server:27017/admin
+    uri: mongodb://root:mongodb%40cl0vdsec.c0m@127.0.0.1:27017/admin
