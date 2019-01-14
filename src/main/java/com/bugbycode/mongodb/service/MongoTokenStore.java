@@ -8,6 +8,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.security.oauth2.common.OAuth2AccessToken;
@@ -26,6 +28,8 @@ import com.bugbycode.mongodb.base.MongoSuportTemplate;
 @Service("mongoTokenStore")
 public class MongoTokenStore extends MongoSuportTemplate implements TokenStore {
 
+	private final Logger logger = LogManager.getLogger(MongoTokenStore.class);
+	
 	private final String TOKEN_CONLLECTION_NAME = "oauth_access_token";
 	
 	private final String TOKEN_REFRESH_CONLLECTION_NAME = "oauth_refresh_token";
@@ -46,9 +50,14 @@ public class MongoTokenStore extends MongoSuportTemplate implements TokenStore {
 
 	public OAuth2Authentication readAuthentication(String token) {
 		OAuth2Authentication authentication = null;
-		OauthAccessToken oauthAccessToken = mongoTemplate.findOne(new Query(Criteria.where("token_id").is(extractTokenKey(token))), OauthAccessToken.class,TOKEN_CONLLECTION_NAME);
-		if(oauthAccessToken != null) {
-			authentication = deserializeAuthentication(oauthAccessToken.getAuthentication());
+		try {
+			OauthAccessToken oauthAccessToken = mongoTemplate.findOne(new Query(Criteria.where("token_id").is(extractTokenKey(token))), OauthAccessToken.class,TOKEN_CONLLECTION_NAME);
+			if(oauthAccessToken != null) {
+				authentication = deserializeAuthentication(oauthAccessToken.getAuthentication());
+			}
+		}catch (Exception e) {
+			removeAccessToken(token);
+			logger.error(e.getLocalizedMessage());
 		}
 		return authentication;
 	}
@@ -77,9 +86,14 @@ public class MongoTokenStore extends MongoSuportTemplate implements TokenStore {
 
 	public OAuth2AccessToken readAccessToken(String tokenValue) {
 		OAuth2AccessToken accessToken = null;
-		OauthAccessToken oauthAccessToken = mongoTemplate.findOne(new Query(Criteria.where("token_id").is(extractTokenKey(tokenValue))), OauthAccessToken.class,TOKEN_CONLLECTION_NAME);
-		if(oauthAccessToken != null) {
-			accessToken = deserializeAccessToken(oauthAccessToken.getToken());
+		try {
+			OauthAccessToken oauthAccessToken = mongoTemplate.findOne(new Query(Criteria.where("token_id").is(extractTokenKey(tokenValue))), OauthAccessToken.class,TOKEN_CONLLECTION_NAME);
+			if(oauthAccessToken != null) {
+				accessToken = deserializeAccessToken(oauthAccessToken.getToken());
+			}
+		}catch (Exception e) {
+			logger.error(e.getLocalizedMessage());
+			removeAccessToken(tokenValue);
 		}
 		return accessToken;
 	}
@@ -103,9 +117,15 @@ public class MongoTokenStore extends MongoSuportTemplate implements TokenStore {
 
 	public OAuth2RefreshToken readRefreshToken(String tokenValue) {
 		OAuth2RefreshToken refreshToken = null;
-		OauthRefreshToken oauthRefreshToken = mongoTemplate.findOne(new Query(Criteria.where("token_id").is(extractTokenKey(tokenValue))), OauthRefreshToken.class, TOKEN_REFRESH_CONLLECTION_NAME);
-		if(oauthRefreshToken != null) {
-			refreshToken = deserializeRefreshToken(oauthRefreshToken.getToken());
+		try {
+			OauthRefreshToken oauthRefreshToken = mongoTemplate.findOne(new Query(Criteria.where("token_id").is(extractTokenKey(tokenValue))), OauthRefreshToken.class, TOKEN_REFRESH_CONLLECTION_NAME);
+			if(oauthRefreshToken != null) {
+				refreshToken = deserializeRefreshToken(oauthRefreshToken.getToken());
+			}
+		}catch (Exception e) {
+			e.printStackTrace();
+			logger.error(e.getLocalizedMessage());
+			removeRefreshToken(tokenValue);
 		}
 		return refreshToken;
 	}
@@ -116,9 +136,15 @@ public class MongoTokenStore extends MongoSuportTemplate implements TokenStore {
 	
 	public OAuth2Authentication readAuthenticationForRefreshToken(String value) {
 		OAuth2Authentication authentication = null;
-		OauthRefreshToken oauthRefreshToken = mongoTemplate.findOne(new Query(Criteria.where("token_id").is(extractTokenKey(value))), OauthRefreshToken.class, TOKEN_REFRESH_CONLLECTION_NAME);
-		if(oauthRefreshToken != null) {
+		try {
+			OauthRefreshToken oauthRefreshToken = mongoTemplate.findOne(new Query(Criteria.where("token_id").is(extractTokenKey(value))), OauthRefreshToken.class, TOKEN_REFRESH_CONLLECTION_NAME);
+			if(oauthRefreshToken == null) {
+				throw new RuntimeException("Failed to find refresh token for token " + value);
+			}
 			authentication = deserializeAuthentication(oauthRefreshToken.getAuthentication());
+		}catch (Exception e) {
+			logger.error(e.getLocalizedMessage());
+			removeRefreshToken(value);
 		}
 		return authentication;
 	}
@@ -142,9 +168,19 @@ public class MongoTokenStore extends MongoSuportTemplate implements TokenStore {
 	public OAuth2AccessToken getAccessToken(OAuth2Authentication authentication) {
 		String key = authenticationKeyGenerator.extractKey(authentication);
 		OAuth2AccessToken accessToken = null;
-		OauthAccessToken oauthAccessToken = mongoTemplate.findOne(new Query(Criteria.where("authentication_id").is(key)), OauthAccessToken.class, TOKEN_CONLLECTION_NAME);
-		if(oauthAccessToken != null) {
-			accessToken = deserializeAccessToken(oauthAccessToken.getToken());
+		try {
+			OauthAccessToken oauthAccessToken = mongoTemplate.findOne(new Query(Criteria.where("authentication_id").is(key)), OauthAccessToken.class, TOKEN_CONLLECTION_NAME);
+			if(oauthAccessToken != null) {
+				accessToken = deserializeAccessToken(oauthAccessToken.getToken());
+			}
+		}catch (Exception e) {
+			e.printStackTrace();
+			logger.error(e.getLocalizedMessage());
+		}
+		if (accessToken != null
+				&& !key.equals(authenticationKeyGenerator.extractKey(readAuthentication(accessToken.getValue())))) {
+			removeAccessToken(accessToken.getValue());
+			storeAccessToken(accessToken, authentication);
 		}
 		return accessToken;
 	}
